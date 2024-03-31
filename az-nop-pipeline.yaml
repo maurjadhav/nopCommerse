@@ -1,0 +1,40 @@
+---
+trigger: none                                   # This triggers the pipeline automatically
+#  - develop
+
+pool:
+  name: default
+
+steps:
+  - bash: |
+      sudo apt update
+    displayName: Updating the packages
+
+  - task: DotNetCoreCLI@2
+    displayName: Dot net Build Stage
+    inputs:
+      command: publish
+      publishWebProjects: true
+      projects: 'src/Presentation/Nop.Web'
+      arguments: '-o $(Build.ArtifactStagingDirectory)'
+      zipAfterPublish: true
+  
+  - task: CopyFiles@2                                      # Copy the file from target
+    displayName: Copying the build
+    inputs:
+      contents: 'Nop.Web/'
+      targetFolder: $(Build.ArtifactStagingDirectory)
+
+  - task: PublishBuildArtifacts@1                           # Publishing the file in artifact
+    displayName: Publlishing the build
+    inputs:
+      pathToPublish: $(Build.ArtifactStagingDirectory)
+      artifactName: MyBuildOutputs
+
+  - task: Bash@3
+    displayName: "Execute ansible to run the playbook"
+    inputs:
+      targetType: inline
+#      script: ansible-playbook -v -i hosts ansible-playbook-npc.yaml --extra-vars "ansible_user=ansible ansible_password=ansible"
+      script: "ansible-playbook -v -i hosts ansible-playbook-npc.yaml"
+      workingDirectory: 'ansible/'
